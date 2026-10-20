@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ให้คะแนนนิทรรศการ GMD4102</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f6f4ef; --card:#ffffff; --ink:#1d1b18; --muted:#6f6a61; --line:#e4e0d6;
+  --accent:#2f4bf0;
+  --s0:#c63d2b; --s0bg:#fbe3df;
+  --s5:#a87100; --s5bg:#fdf0c8;
+  --s10:#1f8a4c; --s10bg:#d9f2e2;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#141311; --card:#1f1e1b; --ink:#f2efe8; --muted:#a29d92; --line:#36332e;
+    --accent:#7d93ff;
+    --s0:#ff8a78; --s0bg:#3d211b;
+    --s5:#f2c14e; --s5bg:#3a2f12;
+    --s10:#5fd08f; --s10bg:#16321f;
+  }
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink)}
+body{font-family:'IBM Plex Sans Thai',system-ui,-apple-system,sans-serif;font-size:16px;line-height:1.45}
+button{font:inherit;color:inherit;cursor:pointer}
+
+header{position:sticky;top:0;z-index:5;background:var(--bg);padding:12px 16px 10px;border-bottom:1px solid var(--line)}
+.top{display:flex;align-items:center;gap:8px}
+.title{flex:1;min-width:0;font-weight:700;font-size:17px;line-height:1.2}
+.title small{display:block;font-weight:400;font-size:12px;color:var(--muted);margin-top:2px}
+.chip{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 12px;font-size:13px;white-space:nowrap;max-width:150px;overflow:hidden;text-overflow:ellipsis}
+.progress{height:5px;background:var(--line);border-radius:5px;margin:12px 0 6px;overflow:hidden}
+.progress i{display:block;height:100%;width:0;background:var(--s10);transition:width .35s}
+.meta{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;color:var(--muted)}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px;vertical-align:1px;background:var(--s10)}
+.dot.wait{background:var(--s5)} .dot.err{background:var(--s0)}
+
+.search{position:relative;margin-top:10px}
+.search input{width:100%;font:inherit;font-size:18px;padding:12px 46px 12px 14px;border:1.5px solid var(--line);border-radius:14px;background:var(--card);color:var(--ink);outline:none;-webkit-appearance:none;appearance:none}
+.search input:focus{border-color:var(--accent)}
+.search input::-webkit-search-cancel-button{display:none}
+.search button{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:36px;height:36px;border:0;border-radius:10px;background:transparent;color:var(--muted);font-size:16px;display:none}
+.search.has button{display:block}
+
+.tabs{display:flex;gap:6px;margin-top:10px;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tabs button{flex:0 0 auto;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 13px;font-size:14px}
+.tabs button.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+
+main{padding:10px 16px 120px;max-width:720px;margin:0 auto}
+.item{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:11px 12px 11px 14px;margin-bottom:8px}
+.item:active{transform:scale(.99)}
+.who{flex:1;min-width:0}
+.name{font-weight:600;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.name span{font-weight:400;color:var(--muted);font-size:13px;margin-right:3px}
+.sub{font-size:13px;color:var(--muted);margin-top:1px}
+.sub b{color:var(--ink);font-weight:700;letter-spacing:.3px}
+.tag{display:inline-block;font-size:11.5px;border:1px solid var(--line);border-radius:6px;padding:0 6px;margin-left:2px}
+.score{flex:0 0 auto;width:46px;height:46px;border-radius:12px;display:grid;place-items:center;font-weight:700;font-size:19px;background:var(--bg);color:var(--muted);border:1px solid var(--line)}
+.score.lo{background:var(--s0bg);color:var(--s0);border-color:transparent}
+.score.mid{background:var(--s5bg);color:var(--s5);border-color:transparent}
+.score.hi{background:var(--s10bg);color:var(--s10);border-color:transparent}
+.score.pending{outline:2px dashed var(--accent);outline-offset:2px}
+.empty{text-align:center;color:var(--muted);padding:48px 12px}
+.empty button{margin-top:12px}
+
+.backdrop{position:fixed;inset:0;background:rgba(0,0,0,.42);opacity:0;pointer-events:none;transition:opacity .2s;z-index:10}
+.backdrop.show{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:0;right:0;bottom:0;margin:0 auto;max-width:560px;background:var(--card);border-radius:22px 22px 0 0;padding:20px 16px calc(16px + env(safe-area-inset-bottom));transform:translateY(110%);transition:transform .25s ease;z-index:11;box-shadow:0 -8px 30px rgba(0,0,0,.15)}
+.sheet.show{transform:none}
+.sh-name{font-weight:700;font-size:20px;line-height:1.3}
+.sh-sub{color:var(--muted);font-size:14px;margin-top:2px}
+.opts{display:grid;grid-template-columns:repeat(6,1fr);gap:7px;margin:18px 0 14px}
+.opt{border:2px solid var(--line);border-radius:14px;padding:12px 0;background:var(--card);text-align:center;font-size:24px;font-weight:700}
+.opt.on{border-color:var(--accent);background:var(--accent);color:#fff}
+.send{width:100%;padding:15px;border:0;border-radius:14px;background:var(--accent);color:#fff;font-weight:600;font-size:17px}
+.send:disabled{opacity:.35}
+.row2{display:flex;justify-content:space-between;margin-top:6px}
+.link{background:none;border:0;color:var(--muted);font-size:14px;padding:10px 6px}
+.link.danger{color:var(--s0)}
+.glist{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:16px 0 4px}
+.gbtn{border:2px solid var(--line);border-radius:14px;background:var(--card);padding:14px 10px;font-size:17px;font-weight:600;text-align:center}
+.gbtn.on{border-color:var(--accent);background:var(--accent);color:#fff}
+.gbtn:last-child:nth-child(odd){grid-column:1 / -1}
+
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translate(-50%,16px);opacity:0;background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;font-size:14px;transition:.2s;z-index:30;pointer-events:none;max-width:90vw;text-align:center}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="top">
+    <div class="title">ให้คะแนนนิทรรศการ<small>GMD4102 โครงการพิเศษ · ภาค 1/2569</small></div>
+    <button class="chip" id="graderBtn" title="เปลี่ยนชื่อผู้ให้คะแนน">👤 <span id="graderName">—</span></button>
+    <button class="chip" id="refreshBtn" aria-label="โหลดข้อมูลใหม่">↻</button>
+  </div>
+  <div class="progress"><i id="bar"></i></div>
+  <div class="meta"><span id="count">กำลังโหลด…</span><span id="sync"></span></div>
+  <div class="search" id="searchBox">
+    <input id="q" type="search" placeholder="ค้นชื่อ หรือเลขท้ายรหัส เช่น 007" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search">
+    <button id="clearQ" aria-label="ล้างคำค้น">✕</button>
+  </div>
+  <div class="tabs" id="tabs">
+    <button data-f="all" class="on">ทั้งหมด</button>
+    <button data-f="001">Sec 001</button>
+    <button data-f="002">Sec 002</button>
+    <button data-f="todo">ยังไม่ให้</button>
+    <button data-f="done">ให้แล้ว</button>
+  </div>
+</header>
+
+<main id="list"><div class="empty">กำลังโหลดรายชื่อ…</div></main>
+
+<!-- ให้คะแนน -->
+<div class="backdrop" id="bd"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true">
+  <div class="sh-name" id="shName"></div>
+  <div class="sh-sub" id="shSub"></div>
+  <div class="opts" id="opts"></div>
+  <button class="send" id="sendBtn" disabled>ส่งคะแนน</button>
+  <div class="row2">
+    <button class="link" id="cancelBtn">ยกเลิก</button>
+    <button class="link danger" id="clearBtn">ล้างคะแนนของฉัน</button>
+  </div>
+</div>
+
+<!-- ชื่อผู้ให้คะแนน -->
+<div class="backdrop" id="gbd"></div>
+<div class="sheet" id="gsheet" role="dialog" aria-modal="true">
+  <div class="sh-name">คุณคือใคร?</div>
+  <div class="sh-sub">เลือกชื่อของคุณ — คะแนนจะลงคอลัมน์ของคุณใน Google Sheet (เลือกครั้งเดียว เครื่องจะจำไว้)</div>
+  <div class="glist" id="gList"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ======== ตั้งค่า: วาง URL ของ Web app (ลงท้ายด้วย /exec) ไว้ระหว่างเครื่องหมาย ' ' ========
+   ใช้เมื่อเปิดหน้านี้จาก GitHub Pages — ถ้าเปิดจาก Apps Script โดยตรง ไม่ต้องใส่ */
+var API_URL = 'https://script.google.com/macros/s/AKfycbxiX2537H-X6PyBi_5BrB1BTS_217-dchlYJfsVrV-XnsOzCDALn4_V6sLnJVUa6A4D/exec';
+
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+
+  // เรียก Apps Script: ถ้าเปิดจาก Apps Script ใช้ google.script.run / ถ้าเปิดจาก GitHub ใช้ fetch ไปที่ API_URL
+  function call(fn, args, ok, fail){
+    if (window.google && google.script && google.script.run) {
+      var r = google.script.run.withSuccessHandler(ok).withFailureHandler(fail);
+      r[fn].apply(r, args);
+      return;
+    }
+    var body = fn === 'getData'
+      ? { action: 'getData', grader: args[0] }
+      : { action: 'saveScore', id: args[0], score: args[1], grader: args[2] };
+    fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) })
+      .then(function(res){ return res.json(); })
+      .then(function(j){ if (j.ok) ok(j.data); else fail(new Error(j.error)); })
+      .catch(fail);
+  }
+  var PFX = 'gmd4102_';
+  var store = {
+    get: function(k, d){ try { var v = localStorage.getItem(PFX + k); return v == null ? d : JSON.parse(v); } catch(e){ return d; } },
+    set: function(k, v){ try { localStorage.setItem(PFX + k, JSON.stringify(v)); } catch(e){} }
+  };
+
+  var students = [];
+  var grader = store.get('grader', '');
+  var queue = store.get('queue', []);    // คะแนนที่รอส่ง (กันเน็ตหลุดระหว่างเดินตรวจ)
+  var filter = 'all';
+  var current = null, picked = null;
+  var flushing = false, lastErr = '', retryT = null, loaded = false;
+  function lvl(m){ return m == null ? '' : (m >= 7 ? ' hi' : m >= 4 ? ' mid' : ' lo'); }
+  $('opts').innerHTML = [0,1,2,3,4,5,6,7,8,9,10].map(function(n){ return '<button class="opt" data-s="' + n + '">' + n + '</button>'; }).join('');
+  var GRADERS = ['Krit', 'Supatra', 'Duangrat', 'Jitima', 'Khwanchai'];   // ต้องตรงกับ GRADERS ใน Code.gs
+
+  function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function norm(s){ return String(s).toLowerCase().replace(/\s+/g, ''); }
+  function splitName(n){ var m = String(n).match(/^(นางสาว|นาย|นาง)\s*(.*)$/); return m ? [m[1], m[2]] : ['', n]; }
+  function pendingFor(id){ for (var i = 0; i < queue.length; i++) if (queue[i].id === id && queue[i].grader === grader) return queue[i]; return null; }
+  function myScore(s){ var p = pendingFor(s.id); return p ? p.score : s.mine; }
+
+  var toastT;
+  function toast(msg){ var t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(function(){ t.classList.remove('show'); }, 2200); }
+
+  /* ---------- render ---------- */
+  function render(){
+    var raw = $('q').value;
+    $('searchBox').classList.toggle('has', raw.length > 0);
+    var q = norm(raw);
+    var qName = q.replace(/^(นางสาว|นาย|นาง)/, '');
+    var digits = /^\d+$/.test(q);
+
+    var rows = students.filter(function(s){
+      var m = myScore(s);
+      if ((filter === '001' || filter === '002') && s.sec !== filter) return false;
+      if (filter === 'todo' && m != null) return false;
+      if (filter === 'done' && m == null) return false;
+      if (!q) return true;
+      if (digits) return s.id.indexOf(q) >= 0;
+      return norm(s.name).indexOf(qName) >= 0;
+    });
+    if (digits) rows.sort(function(a, b){ return (b.id.slice(-q.length) === q) - (a.id.slice(-q.length) === q); });
+
+    if (!loaded) { /* keep loading message */ }
+    else if (!rows.length) $('list').innerHTML = '<div class="empty">ไม่พบรายชื่อที่ตรงกับ “' + esc(raw) + '”</div>';
+    else $('list').innerHTML = rows.map(function(s){
+      var nm = splitName(s.name), m = myScore(s), pend = !!pendingFor(s.id);
+      var extra = s.n >= 2 && s.avg != null ? ' · เฉลี่ย ' + (Math.round(s.avg * 10) / 10) + ' (' + s.n + ' ท่าน)' : '';
+      return '<button class="item" data-id="' + esc(s.id) + '">' +
+        '<div class="who"><div class="name"><span>' + esc(nm[0]) + '</span>' + esc(nm[1]) + '</div>' +
+        '<div class="sub">' + esc(s.id.slice(0, -3)) + '<b>' + esc(s.id.slice(-3)) + '</b> <span class="tag">Sec ' + esc(s.sec) + '</span>' + extra + '</div></div>' +
+        '<div class="score' + lvl(m) + (pend ? ' pending' : '') + '">' + (m == null ? '–' : m) + '</div>' +
+      '</button>';
+    }).join('');
+
+    // ความคืบหน้า
+    var total = students.length, done = 0, per = {'001':[0,0], '002':[0,0]};
+    students.forEach(function(s){ var d = myScore(s) != null; if (d) done++; if (per[s.sec]) { per[s.sec][1]++; if (d) per[s.sec][0]++; } });
+    if (loaded) $('count').textContent = 'ให้แล้ว ' + done + '/' + total + '  ·  001: ' + per['001'][0] + '/' + per['001'][1] + '  ·  002: ' + per['002'][0] + '/' + per['002'][1];
+    $('bar').style.width = total ? (done / total * 100) + '%' : '0';
+    renderSync();
+  }
+
+  function renderSync(){
+    var el = $('sync');
+    if (!queue.length) el.innerHTML = '<i class="dot"></i>บันทึกครบแล้ว';
+    else if (lastErr) el.innerHTML = '<i class="dot err"></i>รอส่ง ' + queue.length + ' · เน็ตหลุด จะลองใหม่';
+    else el.innerHTML = '<i class="dot wait"></i>กำลังส่ง ' + queue.length + '…';
+  }
+
+  /* ---------- sync กับ Google Sheet ---------- */
+  function enqueue(item){
+    queue = queue.filter(function(q){ return !(q.id === item.id && q.grader === item.grader); });
+    queue.push(item);
+    store.set('queue', queue);
+    flush();
+  }
+
+  function dropItem(item){ var i = queue.indexOf(item); if (i >= 0) queue.splice(i, 1); store.set('queue', queue); }
+
+  function flush(){
+    renderSync();
+    if (flushing || !queue.length) return;
+    flushing = true;
+    var item = queue[0];
+    call('saveScore', [item.id, item.score, item.grader], function(rec){
+        flushing = false; lastErr = '';
+        dropItem(item);
+        var s = students.find(function(x){ return x.id === rec.id; });
+        if (s) { if (item.grader === grader) s.mine = rec.mine; s.avg = rec.avg; s.n = rec.n; }
+        render(); flush();
+      }, function(err){
+        flushing = false;
+        var msg = (err && err.message) || String(err);
+        if (msg.indexOf('ERR:') >= 0) {           // ข้อผิดพลาดจากข้อมูล ไม่ต้องลองซ้ำ
+          dropItem(item); toast(msg.replace(/^.*ERR:\s*/, '')); render(); flush(); return;
+        }
+        lastErr = msg; renderSync();
+        clearTimeout(retryT); retryT = setTimeout(flush, 4000);
+      });
+  }
+
+  function load(){
+    $('graderName').textContent = grader || '—';
+    call('getData', [grader], function(data){ students = data || []; loaded = true; render(); flush(); }, function(err){
+        var msg = (err && err.message) || String(err);
+        if (!students.length) $('list').innerHTML = '<div class="empty">โหลดรายชื่อไม่สำเร็จ<br><small>' + esc(msg.replace(/^.*ERR:\s*/, '')) + '</small><br><button class="chip" onclick="location.reload()">ลองใหม่</button></div>';
+        else toast('โหลดข้อมูลใหม่ไม่สำเร็จ');
+      });
+  }
+
+  /* ---------- แผ่นให้คะแนน ---------- */
+  function openSheet(id){
+    current = students.find(function(s){ return s.id === id; });
+    if (!current) return;
+    picked = myScore(current);
+    var nm = splitName(current.name);
+    $('shName').textContent = nm[0] + nm[1];
+    $('shSub').textContent = current.id + ' · Sec ' + current.sec + (picked != null ? ' · คะแนนเดิม ' + picked : '');
+    $('sendBtn').textContent = picked != null ? 'แก้คะแนน' : 'ส่งคะแนน';
+    $('clearBtn').style.visibility = picked != null ? 'visible' : 'hidden';
+    paintOpts();
+    $('bd').classList.add('show'); $('sheet').classList.add('show');
+    if (document.activeElement) document.activeElement.blur();
+  }
+  function closeSheet(){ $('bd').classList.remove('show'); $('sheet').classList.remove('show'); current = null; }
+  function paintOpts(){
+    Array.prototype.forEach.call(document.querySelectorAll('#opts .opt'), function(b){ b.classList.toggle('on', picked != null && Number(b.dataset.s) === picked); });
+    $('sendBtn').disabled = picked == null;
+  }
+
+  function afterSave(msg){
+    closeSheet();
+    $('q').value = '';
+    render();
+    toast(msg);
+  }
+
+  /* ---------- ชื่อผู้ให้คะแนน ---------- */
+  function openGrader(){
+    $('gList').innerHTML = GRADERS.map(function(g){
+      return '<button class="gbtn' + (g === grader ? ' on' : '') + '" data-g="' + esc(g) + '">' + esc(g) + '</button>';
+    }).join('');
+    $('gbd').classList.add('show'); $('gsheet').classList.add('show');
+  }
+  function saveGrader(v){
+    if (GRADERS.indexOf(v) < 0) return;
+    var changed = v !== grader;
+    grader = v; store.set('grader', grader);
+    $('gbd').classList.remove('show'); $('gsheet').classList.remove('show');
+    if (changed || !loaded) load();
+  }
+
+  /* ---------- events ---------- */
+  $('q').addEventListener('input', render);
+  $('q').addEventListener('keydown', function(e){
+    if (e.key === 'Enter') {
+      var first = document.querySelectorAll('#list .item');
+      if (first.length === 1) openSheet(first[0].dataset.id);
+      e.target.blur();
+    }
+  });
+  $('clearQ').addEventListener('click', function(){ $('q').value = ''; render(); $('q').focus(); });
+  $('tabs').addEventListener('click', function(e){
+    var b = e.target.closest('button'); if (!b) return;
+    filter = b.dataset.f;
+    Array.prototype.forEach.call(this.children, function(x){ x.classList.toggle('on', x === b); });
+    render();
+  });
+  $('list').addEventListener('click', function(e){ var it = e.target.closest('.item'); if (it) openSheet(it.dataset.id); });
+  $('opts').addEventListener('click', function(e){ var b = e.target.closest('.opt'); if (!b) return; picked = Number(b.dataset.s); paintOpts(); });
+  $('sendBtn').addEventListener('click', function(){
+    if (!current || picked == null) return;
+    var nm = splitName(current.name)[1];
+    enqueue({ id: current.id, score: picked, grader: grader, t: Date.now() });
+    afterSave('✓ ' + nm + ' = ' + picked);
+  });
+  $('clearBtn').addEventListener('click', function(){
+    if (!current) return;
+    var nm = splitName(current.name)[1];
+    enqueue({ id: current.id, score: null, grader: grader, t: Date.now() });
+    afterSave('ล้างคะแนน ' + nm + ' แล้ว');
+  });
+  $('cancelBtn').addEventListener('click', closeSheet);
+  $('bd').addEventListener('click', closeSheet);
+  $('graderBtn').addEventListener('click', openGrader);
+  $('gList').addEventListener('click', function(e){ var b = e.target.closest('.gbtn'); if (b) saveGrader(b.dataset.g); });
+  $('gbd').addEventListener('click', function(){ if (grader) { $('gbd').classList.remove('show'); $('gsheet').classList.remove('show'); } });
+  $('refreshBtn').addEventListener('click', function(){ toast('กำลังโหลดข้อมูลล่าสุด…'); load(); });
+  window.addEventListener('online', flush);
+  document.addEventListener('visibilitychange', function(){ if (!document.hidden) flush(); });
+
+  /* ---------- start ---------- */
+  renderSync();
+  if (GRADERS.indexOf(grader) < 0) { grader = ''; openGrader(); } else load();
+})();
+</script>
+</body>
+</html>
