@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dashboard คะแนนนิทรรศการ GMD4102</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{ --bg:#0b1242; --ink:#e9ecf7; --ink2:#aab2d3; --muted:#6c76a6; }
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink)}
+body{font-family:'IBM Plex Sans Thai',system-ui,-apple-system,sans-serif;font-size:13px;overflow:hidden}
+button{font:inherit;color:inherit;cursor:pointer}
+
+#wrap{position:fixed;inset:0;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
+#wrap::-webkit-scrollbar{display:none}
+#viz{display:block;height:100%}
+
+.col{transition:opacity .35s}
+.col.off{opacity:.07}
+.col.off .hit{pointer-events:none}
+#viz.focus .col:not(.hl):not(.off){opacity:.22}
+.hit{fill:transparent;cursor:pointer}
+.base-ring{fill:none;stroke:var(--ink);stroke-width:1.2;opacity:0;transition:opacity .2s}
+.col.hl .base-ring{opacity:.9}
+.grow{opacity:0;animation:grow .6s ease-out forwards}
+@keyframes grow{from{opacity:0;transform:translateY(8px)}to{opacity:var(--o,1);transform:none}}
+
+/* แถบควบคุมเล็ก ๆ — จางไว้ ชี้แล้วค่อยชัด */
+.ctrl{position:fixed;top:18px;left:20px;display:flex;gap:4px;align-items:center;flex-wrap:wrap;opacity:.4;transition:opacity .25s;z-index:5;max-width:calc(100vw - 40px)}
+.ctrl:hover,.ctrl:focus-within{opacity:1}
+.chip{border:0;background:transparent;border-radius:6px;padding:3px 8px;font-size:12.5px;color:var(--ink2)}
+.chip.on{background:rgba(255,255,255,.1);color:var(--ink)}
+.sep{width:1px;height:14px;background:rgba(255,255,255,.15);margin:0 6px}
+.upd{color:var(--muted);font-size:11.5px;margin-left:6px}
+
+.tip{position:fixed;z-index:20;pointer-events:none;background:rgba(8,13,48,.94);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:10px 12px;min-width:190px;box-shadow:0 10px 30px rgba(0,0,0,.4);opacity:0;transition:opacity .12s}
+.tip.show{opacity:1}
+.tip .nm{font-weight:600;font-size:14.5px}
+.tip .id{color:var(--muted);font-size:12px;font-family:'IBM Plex Mono',monospace;margin-top:1px}
+.tip .row{display:flex;justify-content:space-between;align-items:baseline;gap:18px;margin-top:9px;padding-top:8px;border-top:1px solid rgba(255,255,255,.08);color:var(--ink2);font-size:12.5px}
+.tip .row b{font-family:'IBM Plex Mono',monospace;font-weight:500;color:var(--ink);font-size:16px}
+
+.msg{position:fixed;inset:0;display:grid;place-items:center;text-align:center;color:var(--ink2);padding:24px;pointer-events:none}
+.msg button{pointer-events:auto;margin-top:10px}
+</style>
+</head>
+<body>
+
+<div id="wrap"><svg id="viz" role="img" aria-label="คะแนนเฉลี่ยของนักศึกษาแต่ละคน เรียงตามรหัส"></svg></div>
+
+<div class="ctrl" id="ctrl">
+  <span id="secRow">
+    <button class="chip on" data-v="all">ทุก Sec</button><button class="chip" data-v="001">001</button><button class="chip" data-v="002">002</button>
+  </span>
+  <span class="sep"></span>
+  <span id="bandRow">
+    <button class="chip on" data-v="all">ทุกช่วง</button><button class="chip" data-v="lo">0–4.9</button><button class="chip" data-v="mid">5–7.9</button><button class="chip" data-v="hi">8–10</button>
+  </span>
+  <span class="upd" id="updated"></span>
+</div>
+
+<div class="tip" id="tip"></div>
+<div class="msg" id="msg" hidden></div>
+
+<script>
+/* ======== ตั้งค่า ======== */
+var API_URL = 'https://script.google.com/macros/s/AKfycbxiX2537H-X6PyBi_5BrB1BTS_217-dchlYJfsVrV-XnsOzCDALn4_V6sLnJVUa6A4D/exec';
+var GRADERS = ['Krit', 'Supatra', 'Duangrat', 'Jitima', 'Khwanchai'];   // ใช้ดึงข้อมูลเท่านั้น ไม่แสดงบนหน้าจอ
+var MID = 5, HI = 8;        // ขอบช่วงคะแนนของฟิลเตอร์
+var REFRESH_SEC = 60;
+
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var NS = 'http://www.w3.org/2000/svg';
+  var PAL = ['#e2336e', '#a3205f', '#f4a52a', '#d9822b', '#2f93ad', '#1e6683', '#5ab6c9', '#c8d2ec'];
+  var PAL_W = [16, 8, 14, 6, 16, 10, 7, 3];   // สัดส่วนการสุ่มสี (รวม 80)
+
+  var students = [], filt = { sec:'all', band:'all' }, firstDraw = true, hoverId = null, pinned = false;
+
+  function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function fmt(v){ return v == null ? '–' : (Math.round(v * 10) / 10).toFixed(v % 1 ? 1 : 0); }
+  function band(v){ return v == null ? 'none' : v < MID ? 'lo' : v < HI ? 'mid' : 'hi'; }
+  function rng(seed){ return function(){ seed |= 0; seed = seed + 0x6D2B79F5 | 0; var t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function hash(s){ var h = 2166136261; for (var i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h; }
+  function pick(r){ var t = r() * 80, a = 0; for (var i = 0; i < PAL.length; i++){ a += PAL_W[i]; if (t < a) return PAL[i]; } return PAL[0]; }
+  function el(tag, attrs, parent){ var e = document.createElementNS(NS, tag); for (var k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+
+  /* ---------- ข้อมูล ---------- */
+  function post(body){
+    return fetch(API_URL, { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body: JSON.stringify(body) })
+      .then(function(r){ return r.json(); })
+      .then(function(j){ if (!j.ok) throw new Error(j.error); return j.data; });
+  }
+  function demoData(){
+    var r = rng(11), out = [];
+    for (var i = 0; i < 89; i++){
+      var base = 1 + r() * 9;
+      out.push({ id:(i < 9 ? '651225250' : '661225250') + String(10 + i), name:'นักศึกษาตัวอย่าง ' + (i + 1), sec: i % 2 ? '002' : '001',
+        scores: GRADERS.map(function(){ return r() < .18 || i % 23 === 5 ? null : Math.max(0, Math.min(10, Math.round(base + (r() - .5) * 3))); }) });
+    }
+    return Promise.resolve(out);
+  }
+  function fetchAll(){
+    if (/[?&]demo/.test(location.search)) return demoData();
+    return Promise.all(GRADERS.map(function(g){ return post({ action:'getData', grader:g }); })).then(function(lists){
+      var map = {}, order = [];
+      lists.forEach(function(list, gi){
+        (list || []).forEach(function(s){
+          if (!map[s.id]) { map[s.id] = { id:s.id, name:s.name, sec:s.sec, scores:GRADERS.map(function(){ return null; }) }; order.push(s.id); }
+          map[s.id].scores[gi] = s.mine == null ? null : Number(s.mine);
+        });
+      });
+      return order.map(function(id){ return map[id]; });
+    });
+  }
+  function load(){
+    fetchAll().then(function(list){
+      students = list.map(function(s){
+        var v = s.scores.filter(function(x){ return x != null; });
+        s.n = v.length;
+        s.avg = v.length ? v.reduce(function(a, b){ return a + b; }, 0) / v.length : null;
+        s.band = band(s.avg);
+        return s;
+      }).sort(function(a, b){ return a.id < b.id ? -1 : a.id > b.id ? 1 : 0; });   // รหัสน้อย → มาก
+      var t = new Date();
+      $('updated').textContent = String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0');
+      $('msg').hidden = true;
+      draw();
+    }).catch(function(err){
+      if (!students.length) {
+        $('msg').innerHTML = '<div>โหลดข้อมูลไม่สำเร็จ<br><small>' + esc(err && err.message || err) + '</small><br><button class="chip on" onclick="location.reload()">ลองใหม่</button></div>';
+        $('msg').hidden = false;
+      }
+    });
+  }
+
+  /* ---------- วาด ---------- */
+  function draw(){
+    var svg = $('viz'), H = innerHeight, n = students.length;
+    if (!n) return;
+    var pad = 24, step = Math.max(7, (innerWidth - pad * 2) / n), W = Math.max(innerWidth, step * n + pad * 2);
+    var baseY = H - 46, top = 70, tickY = H - 22;
+    var y = function(v){ return baseY - 12 - v / 10 * (baseY - 12 - top); };
+    svg.setAttribute('width', W); svg.setAttribute('height', H); svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    svg.innerHTML = '';
+
+    students.forEach(function(s, k){
+      var cx = pad + step * (k + 0.5), r = rng(hash(s.id)), g = el('g', { class:'col', 'data-id':s.id }, svg);
+
+      // เสาวงกลม: ล่างแน่น บนโปร่ง ปลายบนสุดอยู่ที่ระดับคะแนนเฉลี่ย
+      if (s.avg != null) {
+        var yTop = y(s.avg), yy = baseY - 12, spread = Math.min(step * 0.42, 9), i = 0;
+        while (yy > yTop + 3) {
+          var prog = (baseY - 12 - yy) / (baseY - 12 - top);
+          var rad = 0.9 + Math.pow(r(), 2.2) * 3.2;
+          var o = (0.35 + r() * 0.65) * (1 - prog * 0.35);
+          var c = el('circle', { cx:(cx + (r() - .5) * 2 * spread).toFixed(1), cy:yy.toFixed(1), r:rad.toFixed(2), fill:pick(r), opacity:o.toFixed(2) }, g);
+          if (firstDraw) { c.style.setProperty('--o', o.toFixed(2)); c.classList.add('grow'); c.style.animationDelay = (k * 12 + i * 18) + 'ms'; }
+          yy -= rad * 1.5 + 1.5 + r() * (2 + prog * 10);
+          i++;
+        }
+        var tipC = el('circle', { cx:cx, cy:yTop.toFixed(1), r:2.6, fill:pick(r) }, g);
+        if (firstDraw) { tipC.classList.add('grow'); tipC.style.animationDelay = (k * 12 + i * 18) + 'ms'; }
+      }
+
+      // วงกลมฐาน = นักศึกษา 1 คน (ใหญ่ขึ้นตามจำนวนผู้ตรวจ)
+      var br = Math.min(step * 0.46, 2.2 + s.n * 0.9);
+      el('circle', { cx:cx, cy:baseY, r:br.toFixed(2), fill: s.n ? pick(r) : 'rgba(255,255,255,.14)' }, g);
+      el('circle', { class:'base-ring', cx:cx, cy:baseY, r:(br + 3).toFixed(2) }, g);
+      // ขีดเฉียงเล็ก ๆ ใต้ฐาน
+      el('line', { x1:cx - 2, y1:tickY + 4, x2:cx + 2, y2:tickY - 4, stroke:pick(r), 'stroke-width':1.2, opacity:.55 }, g);
+
+      el('rect', { class:'hit', x:cx - step / 2, y:top - 10, width:step, height:H - top + 10 }, g);
+    });
+    firstDraw = false;
+    applyFilter();
+    if (hoverId) highlight(hoverId);
+  }
+
+  /* ---------- ฟิลเตอร์ ---------- */
+  function match(s){ return (filt.sec === 'all' || s.sec === filt.sec) && (filt.band === 'all' || s.band === filt.band); }
+  function byId(id){ for (var i = 0; i < students.length; i++) if (students[i].id === id) return students[i]; return null; }
+  function applyFilter(){
+    Array.prototype.forEach.call(document.querySelectorAll('.col'), function(g){
+      var s = byId(g.getAttribute('data-id')); g.classList.toggle('off', !s || !match(s));
+    });
+    if (hoverId && !match(byId(hoverId) || {})) clearHover();
+  }
+  function bindChips(rowId, key){
+    $(rowId).addEventListener('click', function(e){
+      var b = e.target.closest('.chip'); if (!b) return;
+      filt[key] = b.getAttribute('data-v');
+      Array.prototype.forEach.call(this.querySelectorAll('.chip'), function(x){ x.classList.toggle('on', x === b); });
+      applyFilter();
+    });
+  }
+  bindChips('secRow', 'sec'); bindChips('bandRow', 'band');
+
+  /* ---------- hover / แตะ ---------- */
+  function highlight(id){
+    hoverId = id;
+    var svg = $('viz'), g = svg.querySelector('.col[data-id="' + id + '"]');
+    if (!g || g.classList.contains('off')) return clearHover();
+    Array.prototype.forEach.call(svg.querySelectorAll('.col.hl'), function(x){ if (x !== g) x.classList.remove('hl'); });
+    g.classList.add('hl'); svg.classList.add('focus');
+    var s = byId(id);
+    $('tip').innerHTML = '<div class="nm">' + esc(s.name) + '</div><div class="id">' + esc(s.id) + '</div>' +
+      '<div class="row"><span>ผู้ตรวจ <b>' + s.n + '</b>/' + GRADERS.length + '</span><span>เฉลี่ย <b>' + fmt(s.avg) + '</b></span></div>';
+    $('tip').classList.add('show');
+  }
+  function clearHover(){
+    hoverId = null; pinned = false;
+    $('viz').classList.remove('focus');
+    Array.prototype.forEach.call(document.querySelectorAll('.col.hl'), function(x){ x.classList.remove('hl'); });
+    $('tip').classList.remove('show');
+  }
+  function placeTip(x, yy){
+    var t = $('tip'), w = t.offsetWidth, h = t.offsetHeight, px = x + 16, py = yy - h - 16;
+    if (px + w > innerWidth - 8) px = x - w - 16;
+    if (py < 8) py = yy + 16;
+    t.style.left = Math.max(8, px) + 'px'; t.style.top = py + 'px';
+  }
+  var viz = $('viz');
+  viz.addEventListener('animationend', function(e){ e.target.classList.remove('grow'); e.target.style.animationDelay = ''; });
+  viz.addEventListener('mousemove', function(e){
+    if (pinned) return;
+    var g = e.target.closest && e.target.closest('.col');
+    if (g) { if (g.getAttribute('data-id') !== hoverId) highlight(g.getAttribute('data-id')); placeTip(e.clientX, e.clientY); }
+    else if (hoverId) clearHover();
+  });
+  viz.addEventListener('mouseleave', function(){ if (!pinned) clearHover(); });
+  viz.addEventListener('click', function(e){
+    var g = e.target.closest && e.target.closest('.col');
+    if (g) { highlight(g.getAttribute('data-id')); pinned = true; placeTip(e.clientX, e.clientY); }
+    else clearHover();
+  });
+
+  var rt; addEventListener('resize', function(){ clearTimeout(rt); rt = setTimeout(draw, 150); });
+  setInterval(function(){ if (!document.hidden && !pinned) load(); }, REFRESH_SEC * 1000);
+  load();
+})();
+</script>
+</body>
+</html>
