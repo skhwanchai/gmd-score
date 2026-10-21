@@ -23,6 +23,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 .col.off .hit{pointer-events:none}
 #viz.focus .col:not(.hl):not(.off){opacity:.22}
 .hit{fill:transparent;cursor:pointer}
+.col circle,.col line{pointer-events:none}
 .base-ring{fill:none;stroke:var(--ink);stroke-width:1.2;opacity:0;transition:opacity .2s}
 .col.hl .base-ring{opacity:.9}
 .grow{opacity:0;animation:grow .6s ease-out forwards}
@@ -173,7 +174,7 @@ var REFRESH_SEC = 60;
       // ขีดเฉียงเล็ก ๆ ใต้ฐาน
       el('line', { x1:cx - 2, y1:tickY + 4, x2:cx + 2, y2:tickY - 4, stroke:pick(r), 'stroke-width':1.2, opacity:.55 }, g);
 
-      el('rect', { class:'hit', x:cx - step / 2, y:top - 10, width:step, height:H - top + 10 }, g);
+      el('rect', { class:'hit', x:cx - step / 2, y:baseY - 16, width:step, height:32 }, g);   // ชี้ได้เฉพาะวงกลมแถวล่าง
     });
     firstDraw = false;
     applyFilter();

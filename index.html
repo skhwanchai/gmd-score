@@ -9,21 +9,14 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
+/* โทนเดียวกับหน้า Dashboard: น้ำเงินเข้ม + ชมพู / ส้ม / ฟ้า */
 :root{
-  --bg:#f6f4ef; --card:#ffffff; --ink:#1d1b18; --muted:#6f6a61; --line:#e4e0d6;
-  --accent:#2f4bf0;
-  --s0:#c63d2b; --s0bg:#fbe3df;
-  --s5:#a87100; --s5bg:#fdf0c8;
-  --s10:#1f8a4c; --s10bg:#d9f2e2;
-}
-@media (prefers-color-scheme: dark){
-  :root{
-    --bg:#141311; --card:#1f1e1b; --ink:#f2efe8; --muted:#a29d92; --line:#36332e;
-    --accent:#7d93ff;
-    --s0:#ff8a78; --s0bg:#3d211b;
-    --s5:#f2c14e; --s5bg:#3a2f12;
-    --s10:#5fd08f; --s10bg:#16321f;
-  }
+  color-scheme:dark;
+  --bg:#0b1242; --card:#131c55; --ink:#e9ecf7; --muted:#8a93c0; --line:#26306e;
+  --accent:#e2336e;
+  --s0:#ff5c8f; --s0bg:#3a1748;
+  --s5:#f4a52a; --s5bg:#3b2d3a;
+  --s10:#5ab6c9; --s10bg:#16365e;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;background:var(--bg);color:var(--ink)}
@@ -100,6 +93,7 @@ main{padding:10px 16px 120px;max-width:720px;margin:0 auto}
     <div class="title">ให้คะแนนนิทรรศการ<small>GMD4102 โครงการพิเศษ · ภาค 1/2569</small></div>
     <button class="chip" id="graderBtn" title="เปลี่ยนชื่อผู้ให้คะแนน">👤 <span id="graderName">—</span></button>
     <button class="chip" id="refreshBtn" aria-label="โหลดข้อมูลใหม่">↻</button>
+    <a class="chip" href="dashboard.html" aria-label="ไปหน้า Dashboard" style="text-decoration:none">📊</a>
   </div>
   <div class="progress"><i id="bar"></i></div>
   <div class="meta"><span id="count">กำลังโหลด…</span><span id="sync"></span></div>
