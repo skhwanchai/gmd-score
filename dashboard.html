@@ -23,6 +23,8 @@ button{font:inherit;color:inherit;cursor:pointer}
 .col.off .hit{pointer-events:none}
 #viz.focus .col:not(.hl):not(.off){opacity:.22}
 .hit{fill:transparent;cursor:pointer}
+.sid{font-family:'IBM Plex Mono',monospace;fill:var(--muted);opacity:.75;pointer-events:none;transition:fill .2s}
+.col.hl .sid{fill:var(--ink);opacity:1}
 .col circle,.col line{pointer-events:none}
 .base-ring{fill:none;stroke:var(--ink);stroke-width:1.2;opacity:0;transition:opacity .2s}
 .col.hl .base-ring{opacity:.9}
@@ -34,6 +36,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 .ctrl:hover,.ctrl:focus-within{opacity:1}
 .chip{border:0;background:transparent;border-radius:6px;padding:3px 8px;font-size:12.5px;color:var(--ink2)}
 .chip.on{background:rgba(255,255,255,.1);color:var(--ink)}
+.chip i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;vertical-align:1px}
 .sep{width:1px;height:14px;background:rgba(255,255,255,.15);margin:0 6px}
 .upd{color:var(--muted);font-size:11.5px;margin-left:6px}
 
@@ -58,7 +61,7 @@ button{font:inherit;color:inherit;cursor:pointer}
   </span>
   <span class="sep"></span>
   <span id="bandRow">
-    <button class="chip on" data-v="all">ทุกช่วง</button><button class="chip" data-v="lo">0–4.9</button><button class="chip" data-v="mid">5–7.9</button><button class="chip" data-v="hi">8–10</button>
+    <button class="chip on" data-v="all">ทุกช่วง</button><button class="chip" data-v="lo"><i style="background:#ff5c8f"></i>0–4.9</button><button class="chip" data-v="mid"><i style="background:#f4a52a"></i>5–7.9</button><button class="chip" data-v="hi"><i style="background:#5ab6c9"></i>8–10</button>
   </span>
   <span class="upd" id="updated"></span>
 </div>
@@ -76,8 +79,14 @@ var REFRESH_SEC = 60;
 (function(){
   var $ = function(id){ return document.getElementById(id); };
   var NS = 'http://www.w3.org/2000/svg';
-  var PAL = ['#e2336e', '#a3205f', '#f4a52a', '#d9822b', '#2f93ad', '#1e6683', '#5ab6c9', '#c8d2ec'];
-  var PAL_W = [16, 8, 14, 6, 16, 10, 7, 3];   // สัดส่วนการสุ่มสี (รวม 80)
+  // โทนสีตามช่วงคะแนนเฉลี่ย — สุ่มเฉดภายในโทนเดียวกัน (ตัวแรก = สีหลัก)
+  var TONE = {
+    lo:   ['#ff5c8f', '#e2336e', '#a3205f', '#c43a7a', '#ff9ab8'],   // 0–4.9 ชมพู
+    mid:  ['#f4a52a', '#d9822b', '#ffc35a', '#b8691f', '#f8d79a'],   // 5–7.9 ส้ม
+    hi:   ['#5ab6c9', '#2f93ad', '#1e6683', '#8fd6e3', '#3c9fa6'],   // 8–10 ฟ้า
+    none: ['#3a4377']
+  };
+  var TONE_W = [30, 26, 16, 18, 10];
 
   var students = [], filt = { sec:'all', band:'all' }, firstDraw = true, hoverId = null, pinned = false;
 
@@ -86,7 +95,7 @@ var REFRESH_SEC = 60;
   function band(v){ return v == null ? 'none' : v < MID ? 'lo' : v < HI ? 'mid' : 'hi'; }
   function rng(seed){ return function(){ seed |= 0; seed = seed + 0x6D2B79F5 | 0; var t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
   function hash(s){ var h = 2166136261; for (var i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h; }
-  function pick(r){ var t = r() * 80, a = 0; for (var i = 0; i < PAL.length; i++){ a += PAL_W[i]; if (t < a) return PAL[i]; } return PAL[0]; }
+  function pick(r, b){ var pal = TONE[b] || TONE.none, t = r() * 100, a = 0; for (var i = 0; i < pal.length; i++){ a += TONE_W[i]; if (t < a) return pal[i]; } return pal[0]; }
   function el(tag, attrs, parent){ var e = document.createElementNS(NS, tag); for (var k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
 
   /* ---------- ข้อมูล ---------- */
@@ -143,7 +152,7 @@ var REFRESH_SEC = 60;
     var svg = $('viz'), H = innerHeight, n = students.length;
     if (!n) return;
     var pad = 24, step = Math.max(7, (innerWidth - pad * 2) / n), W = Math.max(innerWidth, step * n + pad * 2);
-    var baseY = H - 46, top = 70, tickY = H - 22;
+    var baseY = H - 50, top = 70;
     var y = function(v){ return baseY - 12 - v / 10 * (baseY - 12 - top); };
     svg.setAttribute('width', W); svg.setAttribute('height', H); svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
     svg.innerHTML = '';
@@ -158,23 +167,23 @@ var REFRESH_SEC = 60;
           var prog = (baseY - 12 - yy) / (baseY - 12 - top);
           var rad = 0.9 + Math.pow(r(), 2.2) * 3.2;
           var o = (0.35 + r() * 0.65) * (1 - prog * 0.35);
-          var c = el('circle', { cx:(cx + (r() - .5) * 2 * spread).toFixed(1), cy:yy.toFixed(1), r:rad.toFixed(2), fill:pick(r), opacity:o.toFixed(2) }, g);
+          var c = el('circle', { cx:(cx + (r() - .5) * 2 * spread).toFixed(1), cy:yy.toFixed(1), r:rad.toFixed(2), fill:pick(r, s.band), opacity:o.toFixed(2) }, g);
           if (firstDraw) { c.style.setProperty('--o', o.toFixed(2)); c.classList.add('grow'); c.style.animationDelay = (k * 12 + i * 18) + 'ms'; }
           yy -= rad * 1.5 + 1.5 + r() * (2 + prog * 10);
           i++;
         }
-        var tipC = el('circle', { cx:cx, cy:yTop.toFixed(1), r:2.6, fill:pick(r) }, g);
+        var tipC = el('circle', { cx:cx, cy:yTop.toFixed(1), r:2.6, fill:TONE[s.band][0] }, g);
         if (firstDraw) { tipC.classList.add('grow'); tipC.style.animationDelay = (k * 12 + i * 18) + 'ms'; }
       }
 
       // วงกลมฐาน = นักศึกษา 1 คน (ใหญ่ขึ้นตามจำนวนผู้ตรวจ)
       var br = Math.min(step * 0.46, 2.2 + s.n * 0.9);
-      el('circle', { cx:cx, cy:baseY, r:br.toFixed(2), fill: s.n ? pick(r) : 'rgba(255,255,255,.14)' }, g);
+      el('circle', { cx:cx, cy:baseY, r:br.toFixed(2), fill: s.n ? TONE[s.band][0] : 'rgba(255,255,255,.14)' }, g);
       el('circle', { class:'base-ring', cx:cx, cy:baseY, r:(br + 3).toFixed(2) }, g);
-      // ขีดเฉียงเล็ก ๆ ใต้ฐาน
-      el('line', { x1:cx - 2, y1:tickY + 4, x2:cx + 2, y2:tickY - 4, stroke:pick(r), 'stroke-width':1.2, opacity:.55 }, g);
+      // รหัส 3 ตัวท้าย ตัวเล็ก ๆ แนวตั้งใต้ฐาน
+      el('text', { class:'sid', x:cx + 3, y:baseY + 13, transform:'rotate(-90 ' + (cx + 3) + ' ' + (baseY + 13) + ')', 'text-anchor':'end', 'font-size':Math.min(8.5, step * 0.9).toFixed(1) }, g).textContent = s.id.slice(-3);
 
-      el('rect', { class:'hit', x:cx - step / 2, y:baseY - 16, width:step, height:32 }, g);   // ชี้ได้เฉพาะวงกลมแถวล่าง
+      el('rect', { class:'hit', x:cx - step / 2, y:baseY - 16, width:step, height:46 }, g);   // ชี้ได้เฉพาะวงกลมแถวล่าง
     });
     firstDraw = false;
     applyFilter();
